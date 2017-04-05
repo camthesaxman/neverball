@@ -475,32 +475,96 @@ void beam_draw(struct s_rend *rend, const GLfloat *p,
     glPopMatrix();
 }
 
-void goal_draw(struct s_rend *rend, const GLfloat *p, GLfloat r, GLfloat h, GLfloat t)
+static void jump_part_draw(struct s_rend *rend, GLfloat s, GLfloat a)
 {
-    GLfloat height = (hmd_stat() ? 0.3f : 1.0f) * video.device_h;
+    glMatrixMode(GL_TEXTURE);
+    glTranslatef(s, 0.0f, 0.0f);
+    glMatrixMode(GL_MODELVIEW);
 
-    glPointSize(height / 6);
+    glRotatef(a, 0.0f, 1.0f, 0.0f);
+    sol_draw(&jump.draw, rend, 1, 1);
+    glScalef(0.9f, 0.9f, 0.9f);
+}
 
+static void goal_part_draw(struct s_rend *rend, GLfloat s)
+{
+    glMatrixMode(GL_TEXTURE);
+    glTranslatef(0.0f, -s, 0.0f);
+    glMatrixMode(GL_MODELVIEW);
+
+    sol_draw(&goal.draw, rend, 1, 1);
+    glScalef(0.8f, 1.1f, 0.8f);
+}
+
+void goal_draw(struct s_rend *rend, float t)
+{
     glPushMatrix();
     {
-        glTranslatef(p[0], p[1], p[2]);
-        glScalef(r, h, r);
-        sol_draw(&goal.draw, rend, 1, 1);
+        glScalef(1.0f, 3.0f, 1.0f);
+        glColor4f(1.0f, 1.0f, 0.0f, 0.5f);
+
+        sol_draw(&beam.draw, rend, 1, 1);
+
+        goal_part_draw(rend, t * 0.10f);
+        goal_part_draw(rend, t * 0.10f);
+        goal_part_draw(rend, t * 0.10f);
+        goal_part_draw(rend, t * 0.10f);
+
+        glMatrixMode(GL_TEXTURE);
+        glLoadIdentity();
+        glMatrixMode(GL_MODELVIEW);
+
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
     glPopMatrix();
 }
 
-void jump_draw(struct s_rend *rend, const GLfloat *p, GLfloat r, GLfloat h)
+void jump_draw(struct s_rend *rend, float t, int h)
 {
-    GLfloat height = (hmd_stat() ? 0.3f : 1.0f) * video.device_h;
-
-    glPointSize(height / 12);
+    static GLfloat c[4][4] = {
+        { 0.75f, 0.5f, 1.0f, 0.5f },
+        { 0.75f, 0.5f, 1.0f, 0.8f },
+    };
 
     glPushMatrix();
     {
-        glTranslatef(p[0], p[1], p[2]);
-        glScalef(r, h, r);
-        sol_draw(&jump.draw, rend, 1, 1);
+        glColor4f(c[h][0], c[h][1], c[h][2], c[h][3]);
+
+        glScalef(1.0f, 2.0f, 1.0f);
+
+        sol_draw(&beam.draw, rend, 1, 1);
+
+        jump_part_draw(rend, t * 0.15f, t * 360.0f);
+        jump_part_draw(rend, t * 0.20f, t * 360.0f);
+        jump_part_draw(rend, t * 0.25f, t * 360.0f);
+
+        glMatrixMode(GL_TEXTURE);
+        glLoadIdentity();
+        glMatrixMode(GL_MODELVIEW);
+
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+    glPopMatrix();
+}
+
+void swch_draw(struct s_rend *rend, int b, int e)
+{
+    static GLfloat c[4][4] = {
+        { 1.0f, 0.0f, 0.0f, 0.5f }, /* red out */
+        { 1.0f, 0.0f, 0.0f, 0.8f }, /* red in */
+        { 0.0f, 1.0f, 0.0f, 0.5f }, /* green out */
+        { 0.0f, 1.0f, 0.0f, 0.8f }, /* green in */
+    };
+
+    const int h = 2 * b + e;
+
+    glPushMatrix();
+    {
+        glScalef(1.0f, 2.0f, 1.0f);
+
+        glColor4f(c[h][0], c[h][1], c[h][2], c[h][3]);
+        sol_draw(&beam.draw, rend, 1, 1);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
     glPopMatrix();
 }
