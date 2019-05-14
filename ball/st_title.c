@@ -63,6 +63,8 @@ static const char *pick_demo(Array items)
 
 /*---------------------------------------------------------------------------*/
 
+extern const char *splash_text;
+
 enum
 {
     MODE_NONE,
@@ -162,6 +164,12 @@ static int title_gui(void)
     {
         if ((jd = gui_label(id, "  Neverball  ", GUI_LRG, 0, 0)))
             gui_set_fill(jd);
+
+        if ((jd = gui_hstack(id)))
+        {
+            gui_label(jd, splash_text, GUI_SML, gui_yel, gui_grn);
+            gui_filler(jd);
+        }
 
         gui_space(id);
 

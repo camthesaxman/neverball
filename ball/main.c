@@ -43,8 +43,29 @@
 #include "st_level.h"
 #include "st_pause.h"
 
-const char TITLE[] = "Neverball " VERSION;
+char TITLE[500];
 const char ICON[] = "icon/neverball.png";
+const char *splash_text = NULL;
+
+/*---------------------------------------------------------------------------*/
+
+static void pick_splash_text(void)
+{
+    static const char *const splash_texts[] =
+    {
+        "Leading the fight against thwomps since 2003",
+        "Over 1,000,000 fallouts... and counting",
+        "Fallout 995,996,997,998,999, ***NUMERIC OVERFLOW***",
+        "Not compatible with Minecraft",
+        "Super Not-So-Empty Ball",
+        "The monkeys ran away.",
+        "Press Alt+F4. I dare you."
+    };
+
+    srand(time(NULL));
+    splash_text = splash_texts[rand() % ARRAYSIZE(splash_texts)];
+    snprintf(TITLE, sizeof(TITLE), "Neverball %s - %s", VERSION, splash_text);
+}
 
 /*---------------------------------------------------------------------------*/
 
@@ -542,6 +563,7 @@ int main(int argc, char *argv[])
     config_paths(opt_data);
     log_init("Neverball", "neverball.log");
     make_dirs_and_migrate();
+    pick_splash_text();
 
     /* Initialize SDL. */
 
