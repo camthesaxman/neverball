@@ -23,6 +23,8 @@ void  game_set_z  (float);
 void  game_set_cam(int);
 void  game_set_rot(float);
 
+float game_get_ballspeed(void);
+
 /*---------------------------------------------------------------------------*/
 
 #endif

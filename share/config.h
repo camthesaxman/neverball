@@ -103,6 +103,7 @@ extern int CONFIG_CHEAT;
 extern int CONFIG_STATS;
 extern int CONFIG_SCREENSHOT;
 extern int CONFIG_LOCK_GOALS;
+extern int CONFIG_UNITS_METRIC;
 extern int CONFIG_CAMERA_1_SPEED;
 extern int CONFIG_CAMERA_2_SPEED;
 extern int CONFIG_CAMERA_3_SPEED;

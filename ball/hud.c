@@ -26,12 +26,14 @@
 
 #include "game_common.h"
 #include "game_client.h"
+#include "game_server.h"
 
 /*---------------------------------------------------------------------------*/
 
 static int Lhud_id;
 static int Rhud_id;
 static int time_id;
+static int speedometer_id;
 
 static int coin_id;
 static int ball_id;
@@ -65,13 +67,15 @@ void hud_init(void)
     {
         if ((id = gui_vstack(Rhud_id)))
         {
+            gui_label(id, config_get_d(CONFIG_UNITS_METRIC) ? _("km/h") : _("mph"), GUI_SML, gui_wht, gui_wht);
             gui_label(id, _("Coins"), GUI_SML, gui_wht, gui_wht);
             gui_label(id, _("Goal"),  GUI_SML, gui_wht, gui_wht);
         }
         if ((id = gui_vstack(Rhud_id)))
         {
-            coin_id = gui_count(id, 100, GUI_SML);
-            goal_id = gui_count(id, 10,  GUI_SML);
+            speedometer_id = gui_count(id, 0, GUI_SML);
+            coin_id        = gui_count(id, 100, GUI_SML);
+            goal_id        = gui_count(id, 10,  GUI_SML);
         }
         gui_set_rect(Rhud_id, GUI_NW);
         gui_layout(Rhud_id, +1, -1);
@@ -167,6 +171,7 @@ void hud_update(int pulse)
     int goal  = curr_goal();
     int balls = curr_balls();
     int score = curr_score();
+    float ballspeed = game_get_ballspeed();
 
     int c_id;
     int last;
@@ -252,6 +257,16 @@ void hud_update(int pulse)
         if (pulse && goal == 0 && last > 0)
             gui_pulse(goal_id, 2.00f);
     }
+
+    /* ball speed */
+
+    ballspeed = ballspeed * UPS;  /* I think this converts it to units per second. maybe? */
+    if (config_get_d(CONFIG_UNITS_METRIC))
+        ballspeed = ballspeed * 3600.0f / 1000.0f / 64.0f;  /* convert to km/h */
+    else
+        ballspeed = ballspeed * 3600.0f / 1609.34f / 64.0f;  /* convert to mph */
+    if ((int)ballspeed != gui_value(speedometer_id))
+        gui_set_count(speedometer_id, ballspeed);
 
     if (config_get_d(CONFIG_FPS))
         hud_fps();

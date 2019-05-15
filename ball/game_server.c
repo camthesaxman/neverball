@@ -918,3 +918,13 @@ void game_set_rot(float r)
 }
 
 /*---------------------------------------------------------------------------*/
+
+/* Calculates speed of the ball (used for displaying speed in HUD) */
+float game_get_ballspeed(void)
+{
+    float vx = vary.uv[0].v[0];
+    float vy = vary.uv[0].v[1];
+    float vz = vary.uv[0].v[2];
+
+    return sqrtf(vx * vx + vy * vy + vz * vz);
+}
