@@ -348,7 +348,10 @@ PUTT_OBJS := \
 	putt/game.o         \
 	putt/hole.o         \
 	putt/course.o       \
+	putt/network.o      \
+	putt/util.o         \
 	putt/st_all.o       \
+	putt/st_netsetup.o  \
 	putt/st_conf.o      \
 	putt/main.o
 
@@ -396,6 +399,7 @@ endif
 ifeq ($(PLATFORM),mingw)
 BALL_OBJS += neverball.ico.o
 PUTT_OBJS += neverputt.ico.o
+SOCK_LIBS += -lws2_32
 endif
 
 BALL_DEPS := $(BALL_OBJS:.o=.d)
@@ -448,7 +452,7 @@ $(BALL_TARG) : $(BALL_OBJS)
 	$(LINK) -o $(BALL_TARG) $(BALL_OBJS) $(LDFLAGS) $(ALL_LIBS)
 
 $(PUTT_TARG) : $(PUTT_OBJS)
-	$(LINK) -o $(PUTT_TARG) $(PUTT_OBJS) $(LDFLAGS) $(ALL_LIBS)
+	$(LINK) -o $(PUTT_TARG) $(PUTT_OBJS) $(LDFLAGS) $(ALL_LIBS) $(SOCK_LIBS)
 
 $(MAPC_TARG) : $(MAPC_OBJS)
 	$(CC) $(ALL_CFLAGS) -o $(MAPC_TARG) $(MAPC_OBJS) $(LDFLAGS) $(MAPC_LIBS)

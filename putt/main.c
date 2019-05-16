@@ -36,6 +36,7 @@
 #include "hmd.h"
 #include "fs.h"
 #include "joy.h"
+#include "text.h"
 
 #include "st_conf.h"
 #include "st_all.h"
@@ -217,6 +218,10 @@ static int loop(void)
                     config_set_d(CONFIG_DISPLAY, video_display());
                 break;
             }
+            break;
+
+        case SDL_TEXTINPUT:
+            text_input_str(e.text.text, 1);
             break;
 
         case SDL_JOYAXISMOTION:

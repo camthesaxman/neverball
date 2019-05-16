@@ -27,6 +27,7 @@
 
 #include "st_all.h"
 #include "st_conf.h"
+#include "st_netsetup.h"
 
 /*---------------------------------------------------------------------------*/
 
@@ -478,6 +479,8 @@ static int course_buttn(int b, int d)
 #define PARTY_3 3
 #define PARTY_4 4
 #define PARTY_B 5
+#define PARTY_NET_JOIN 6
+#define PARTY_NET_HOST 7
 
 static int party_action(int i)
 {
@@ -506,6 +509,14 @@ static int party_action(int i)
     case PARTY_B:
         audio_play(AUD_MENU, 1.f);
         goto_state(&st_course);
+        break;
+    case PARTY_NET_JOIN:
+        audio_play(AUD_MENU, 1.f);
+        goto_state(&st_netjoin);
+        break;
+    case PARTY_NET_HOST:
+        audio_play(AUD_MENU, 1.f);
+        goto_state(&st_nethost);
         break;
     }
     return 1;
@@ -537,6 +548,11 @@ static int party_enter(struct state *st, struct state *prev)
 
         gui_space(id);
 
+        gui_state(id, _("Join Network Game"), GUI_SML, PARTY_NET_JOIN, 0);
+        gui_state(id, _("Host Network Game"), GUI_SML, PARTY_NET_HOST, 0);
+        
+        gui_space(id);
+        
         if ((jd = gui_hstack(id)))
         {
             gui_filler(jd);

@@ -197,6 +197,7 @@ static int name_buttn(int b, int d)
 {
     if (d)
     {
+        puts("button"); fflush(stdout);
         if (config_tst_d(CONFIG_JOYSTICK_BUTTON_A, b))
         {
             int tok = gui_token(gui_active());
