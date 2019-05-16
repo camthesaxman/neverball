@@ -247,6 +247,7 @@ static int loop(void)
 
 static char *opt_data;
 static char *opt_hole;
+static char *opt_replay;
 
 static void opt_parse(int argc, char **argv)
 {
@@ -264,6 +265,11 @@ static void opt_parse(int argc, char **argv)
             if (++i < argc)
                 opt_hole = argv[i];
         }
+        else if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--replay") == 0)
+        {
+            if (++i < argc)
+                opt_replay = argv[i];
+        }
     }
 
     if (argc == 2)
@@ -279,6 +285,9 @@ static void opt_parse(int argc, char **argv)
 
             if (strcmp(ext, ".sol") == 0)
                 opt_hole = argv[1];
+            
+            if (strcmp(ext, ".npr") == 0)
+                opt_replay = argv[1];
         }
     }
 }
@@ -337,7 +346,23 @@ int main(int argc, char *argv[])
 
             init_state(&st_null);
 
-            if (opt_hole)
+            if (opt_replay)
+            {
+                const char *path = fs_resolve(opt_replay);
+                
+                /* Start the demo */
+                if (path)
+                {
+                    printf("demo path = '%s'\n", path);
+                    if (!demo_replay_init(path))
+                    {
+                        printf("failed to open replay '%s', '%s'\n", opt_replay, path);
+                        fflush(stdout);
+                        goto_state(&st_title);
+                    }
+                }
+            }
+            else if (opt_hole)
             {
                 const char *path = fs_resolve(opt_hole);
                 int loaded = 0;

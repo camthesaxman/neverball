@@ -344,7 +344,9 @@ PUTT_OBJS := \
 	share/array.o       \
 	share/log.o         \
 	share/joy.o         \
+	share/cmd.o         \
 	putt/hud.o          \
+	putt/demo.o         \
 	putt/game.o         \
 	putt/hole.o         \
 	putt/course.o       \

@@ -293,11 +293,13 @@ const char *fs_resolve(const char *system)
 
     SAFECPY(path, system);
 
+    printf("path1 = %s\n", path);
     path_normalize(path);
-
+    printf("path2 = %s\n", path);
     if (fs_exists(path))
         return path;
 
+    printf("%s doesn't exist.\n", path);
     /* Chop off directories until we have a match. */
 
     p = path;

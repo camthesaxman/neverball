@@ -237,6 +237,11 @@ char *hole_in(int p)
     return NULL;
 }
 
+char *hole_file(int h)
+{
+    return hole_v[h].file;
+}
+
 /*---------------------------------------------------------------------------*/
 
 int curr_hole(void)   { return hole;   }

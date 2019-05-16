@@ -23,6 +23,7 @@
 #include "audio.h"
 #include "course.h"
 #include "config.h"
+#include "demo.h"
 #include "video.h"
 
 #include "st_all.h"
@@ -552,6 +553,9 @@ static int party_enter(struct state *st, struct state *prev)
 static void party_leave(struct state *st, struct state *next, int id)
 {
     gui_delete(id);
+
+    // see ball/progress.c:init_level
+    demo_play_init(USER_REPLAY_FILE);
 }
 
 static void party_paint(int id, float t)
@@ -713,6 +717,7 @@ static int shared_keybd(int c, int d)
 /*---------------------------------------------------------------------------*/
 
 static int num = 0;
+static float timer = 0.0f;
 
 static int next_enter(struct state *st, struct state *prev)
 {
@@ -761,6 +766,8 @@ static int next_enter(struct state *st, struct state *prev)
     if (paused)
         paused = 0;
 
+    timer = 0.0f;
+
     return id;
 }
 
@@ -779,6 +786,10 @@ static void next_paint(int id, float t)
 
 static void next_timer(int id, float dt)
 {
+    timer += dt;
+
+    if (demo_playing && timer > 1.5f)
+        goto_state(&st_flyby);
     gui_timer(id, dt);
 }
 
@@ -961,6 +972,11 @@ static void stroke_timer(int id, float dt)
     float g[3] = { 0.f, 0.f, 0.f };
 
     float k;
+
+    if (demo_playing)
+    {
+        
+    }
 
     if (SDL_GetModState() & KMOD_SHIFT || stroke_rotate_alt)
         k = 0.25;
@@ -1285,6 +1301,8 @@ static int fall_buttn(int b, int d)
 static int score_enter(struct state *st, struct state *prev)
 {
     audio_music_fade_out(2.f);
+
+    demo_play_stop(0);
 
     if (paused)
         paused = 0;

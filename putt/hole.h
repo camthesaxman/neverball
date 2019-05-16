@@ -16,6 +16,7 @@ char *hole_score(int, int);
 char *hole_tot(int);
 char *hole_out(int);
 char *hole_in(int);
+char *hole_file(int h);
 
 int  curr_hole(void);
 int  curr_party(void);

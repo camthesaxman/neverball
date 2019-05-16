@@ -252,6 +252,7 @@ static fs_file fs_open_write_flags(const char *path, int append)
 
             if ((real = path_join(fs_dir_write, path)))
             {
+                printf("opening '%s'\n", real); fflush(stdout);
                 fh->handle = fopen(real, append ? "ab" : "wb");
                 free(real);
             }

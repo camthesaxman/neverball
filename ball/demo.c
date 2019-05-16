@@ -39,6 +39,51 @@
 
 fs_file demo_fp;
 
+static const char *dbg_cmd_name(int cmd)
+{
+#define CMD_NAME(cmd) [cmd] = #cmd
+    static const char *cmd_names[] = {
+        CMD_NAME(CMD_END_OF_UPDATE),
+        CMD_NAME(CMD_MAKE_BALL),
+        CMD_NAME(CMD_MAKE_ITEM),
+        CMD_NAME(CMD_PICK_ITEM),
+        CMD_NAME(CMD_TILT_ANGLES),
+        CMD_NAME(CMD_SOUND),
+        CMD_NAME(CMD_TIMER),
+        CMD_NAME(CMD_STATUS),
+        CMD_NAME(CMD_COINS),
+        CMD_NAME(CMD_JUMP_ENTER),
+        CMD_NAME(CMD_JUMP_EXIT),
+        CMD_NAME(CMD_BODY_PATH),
+        CMD_NAME(CMD_BODY_TIME),
+        CMD_NAME(CMD_GOAL_OPEN),
+        CMD_NAME(CMD_SWCH_ENTER),
+        CMD_NAME(CMD_SWCH_TOGGLE),
+        CMD_NAME(CMD_SWCH_EXIT),
+        CMD_NAME(CMD_UPDATES_PER_SECOND),
+        CMD_NAME(CMD_BALL_RADIUS),
+        CMD_NAME(CMD_CLEAR_ITEMS),
+        CMD_NAME(CMD_CLEAR_BALLS),
+        CMD_NAME(CMD_BALL_POSITION),
+        CMD_NAME(CMD_BALL_BASIS),
+        CMD_NAME(CMD_BALL_PEND_BASIS),
+        CMD_NAME(CMD_VIEW_POSITION),
+        CMD_NAME(CMD_VIEW_CENTER),
+        CMD_NAME(CMD_VIEW_BASIS),
+        CMD_NAME(CMD_CURRENT_BALL),
+        CMD_NAME(CMD_PATH_FLAG),
+        CMD_NAME(CMD_STEP_SIMULATION),
+        CMD_NAME(CMD_MAP),
+        CMD_NAME(CMD_TILT_AXES),
+        CMD_NAME(CMD_MOVE_PATH),
+        CMD_NAME(CMD_MOVE_TIME),
+    };
+#undef CMD_NAME
+
+    return cmd_names[cmd];
+}
+
+
 /*---------------------------------------------------------------------------*/
 
 static const char *demo_path(const char *name)
@@ -360,6 +405,9 @@ static void demo_update_read(float dt)
 
         while (cmd_get(demo_fp, &cmd))
         {
+            printf("read: %s\n", dbg_cmd_name(cmd.type));
+            fflush(stdout);
+
             game_proxy_enq(&cmd);
 
             if (cmd.type == CMD_UPDATES_PER_SECOND)
