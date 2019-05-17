@@ -214,6 +214,7 @@ endif
 MAPC_TARG := mapc$(X)
 BALL_TARG := neverball$(X)
 PUTT_TARG := neverputt$(X)
+PUTT_SERVER_TARG := neverputt_server$(X)
 
 ifeq ($(PLATFORM),mingw)
 	MAPC := $(WINE) ./$(MAPC_TARG)
@@ -354,6 +355,9 @@ PUTT_OBJS := \
 	putt/st_netsetup.o  \
 	putt/st_conf.o      \
 	putt/main.o
+PUTT_SERVER_OBJS :=     \
+	putt/ded_server.o   \
+	putt/network.o
 
 BALL_OBJS += share/solid_sim_sol.o
 PUTT_OBJS += share/solid_sim_sol.o
@@ -402,9 +406,10 @@ PUTT_OBJS += neverputt.ico.o
 SOCK_LIBS += -lws2_32
 endif
 
-BALL_DEPS := $(BALL_OBJS:.o=.d)
-PUTT_DEPS := $(PUTT_OBJS:.o=.d)
-MAPC_DEPS := $(MAPC_OBJS:.o=.d)
+BALL_DEPS        := $(BALL_OBJS:.o=.d)
+PUTT_DEPS        := $(PUTT_OBJS:.o=.d)
+PUTT_SERVER_DEPS := $(PUTT_SERVER_OBJS:.o=.d)
+MAPC_DEPS        := $(MAPC_OBJS:.o=.d)
 
 MAPS := $(shell find data -name "*.map" \! -name "*.autosave.map")
 SOLS := $(MAPS:%.map=%.sol)
@@ -436,7 +441,7 @@ WINDRES ?= windres
 
 #------------------------------------------------------------------------------
 
-all : $(BALL_TARG) $(PUTT_TARG) $(MAPC_TARG) sols locales desktops
+all : $(BALL_TARG) $(PUTT_TARG) $(PUTT_SERVER_TARG) $(MAPC_TARG) sols locales desktops
 
 ifeq ($(ENABLE_HMD),libovr)
 LINK := $(CXX) $(ALL_CXXFLAGS)
@@ -453,6 +458,9 @@ $(BALL_TARG) : $(BALL_OBJS)
 
 $(PUTT_TARG) : $(PUTT_OBJS)
 	$(LINK) -o $(PUTT_TARG) $(PUTT_OBJS) $(LDFLAGS) $(ALL_LIBS) $(SOCK_LIBS)
+
+$(PUTT_SERVER_TARG) : $(PUTT_SERVER_OBJS)
+	$(LINK) -o $(PUTT_SERVER_TARG) $(PUTT_SERVER_OBJS) $(LDFLAGS) $(ALL_LIBS) $(SOCK_LIBS)
 
 $(MAPC_TARG) : $(MAPC_OBJS)
 	$(CC) $(ALL_CFLAGS) -o $(MAPC_TARG) $(MAPC_OBJS) $(LDFLAGS) $(MAPC_LIBS)
@@ -473,7 +481,7 @@ endif
 desktops : $(DESKTOPS)
 
 clean-src :
-	$(RM) $(BALL_TARG) $(PUTT_TARG) $(MAPC_TARG)
+	$(RM) $(BALL_TARG) $(PUTT_TARG) $(PUTT_SERVER_TARG) $(MAPC_TARG)
 	find . \( -name '*.o' -o -name '*.d' \) -delete
 
 clean : clean-src

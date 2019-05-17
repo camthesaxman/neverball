@@ -164,7 +164,15 @@ static int netjoin_buttn(int b, int d)
 /*---------------------------------------------------------------------------*/
 
 static int status_id;
-static int connecting;
+static int done;
+
+static void set_status_text(int err, const char *text)
+{
+    const GLubyte *color = (err ? gui_red : gui_grn);
+
+    gui_set_label(status_id, text);
+    gui_set_color(status_id, color, color);
+}
 
 static int netconnect_action(int i)
 {
@@ -182,17 +190,17 @@ static int netconnect_enter(struct state *st, struct state *prev)
 {
     int id, jd;
 
-    connecting = 1;
+    done = 0;
 
     if ((id = gui_vstack(0)))
     {
-        char buf[1000];
+        char buf[MAXSTR];
         
         snprintf(buf, sizeof(buf), _("Connecting to %s..."), text_input);
         status_id = gui_label(id, buf, GUI_SML, 0, 0);
-        
+
         gui_space(id);
-        
+
         if ((jd = gui_hstack(id)))
         {
             gui_filler(jd);
@@ -202,8 +210,12 @@ static int netconnect_enter(struct state *st, struct state *prev)
         gui_layout(id, 0, 0);
     }
     
-    network_client_init();
-    
+    if (!network_client_init() || !network_client_join(text_input))
+    {
+        set_status_text(1, network_error);
+        done = 1;
+    }
+
     return id;
 }
 
@@ -221,21 +233,14 @@ static void netconnect_paint(int id, float t)
 
 static void netconnect_timer(int id, float dt)
 {
-    if (connecting)
+    if (!done)
     {
-        puts("connecting"); fflush(stdout);
-        if (network_client_join(text_input))
+        network_client_process();
+        if (network_error)
         {
-            gui_set_label(status_id, "Connected!");
-            gui_set_color(status_id, gui_grn, gui_grn);
+            set_status_text(1, network_error);
+            done = 1;
         }
-        else
-        {
-            gui_set_label(status_id, network_error);
-            gui_set_color(status_id, gui_red, gui_red);
-        }
-
-        connecting = 0;
     }
     gui_timer(id, dt);
 }
@@ -310,10 +315,8 @@ static void nethost_paint(int id, float t)
 
 static void nethost_timer(int id, float dt)
 {
+    network_server_process();
     gui_timer(id, dt);
-    
-    /* listen for joining players */
-    network_listen();
 }
 
 static void nethost_point(int id, int x, int y, int dx, int dy)

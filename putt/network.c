@@ -1,3 +1,23 @@
+/*
+ *  Copyright (C) 2019  Neverball authors
+ *
+ *  This  program is  free software;  you can  redistribute  it and/or
+ *  modify it  under the  terms of the  GNU General Public  License as
+ *  published by the Free Software Foundation; either version 2 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program  is distributed in the  hope that it  will be useful,
+ *  but  WITHOUT ANY WARRANTY;  without even  the implied  warranty of
+ *  MERCHANTABILITY or FITNESS FOR  A PARTICULAR PURPOSE.  See the GNU
+ *  General Public License for more details.
+ *
+ *  You should have received a  copy of the GNU General Public License
+ *  along  with this  program;  if  not, write  to  the Free  Software
+ *  Foundation,  Inc.,   59  Temple  Place,  Suite   330,  Boston,  MA
+ *  02111-1307 USA
+ */
+
+#include <assert.h>
 #ifdef _WIN32
 #include <winsock2.h>
 #else
@@ -7,178 +27,108 @@
 #include <string.h>
 #include <errno.h>
 
+#include "log.h"
 #include "network.h"
 
-#define DEFAULT_PORT 54321
-#define PROTO_VERSION 1
+#define DEFAULT_CLIENT_PORT 54321
+#define DEFAULT_SERVER_PORT 54322
+
+/* This is negative because the protocol is in an experimental state. If this code ever gets merged
+ * into mainline neverputt, we should change this to a positive number. */
+#define PROTO_VERSION -1
 
 const char *network_error = NULL;
+
+static int net_sock = -1;
+
+static char *strfmt(const char *fmt, ...)
+{
+    va_list args;
+    static char buf[MAXSTR];
+    
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    return buf;
+}
 
 #ifdef _WIN32
 static int ws_initialized = 0;
 
-static void init_winsock(void)
+static int init_winsock(void)
 {
-    if (!ws_initialized)
+    WSADATA wsadata;
+    int result;
+
+    if (ws_initialized)
+        return 1;
+
+    if ((result = WSAStartup(MAKEWORD(2, 2), &wsadata)) != 0)
     {
-        WSADATA wsadata;
-        int result;
-
-        if ((result = WSAStartup(MAKEWORD(2, 2), &wsadata)) != 0)
-        {
-            printf("WSAStartup failed: %i\n", result);
-            fflush(stdout);
-            return;
-        }
-        
-        ws_initialized = 1;
-    }
-}
-#endif
-
-/*---------------------------------------------------------------------------*/
-/* Client */
-
-static int cl_sock = -1;
-
-static struct sockaddr_in server_sa;  /* addr of server */
-
-void network_client_init(void)
-{
-#ifdef _WIN32
-    init_winsock();
-#endif
-
-    /* Create socket */
-    cl_sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (cl_sock == -1)
-    {
-        puts("client: error creating socket");
-        fflush(stdout);
-        return;
-    }
-    else
-    {
-        printf("client: created socket %i\n", cl_sock);
-        fflush(stdout);
-    }
-}
-
-void network_client_close(void)
-{
-    if (cl_sock > 0)
-    {
-#ifdef _WIN32
-        closesocket(cl_sock);
-#else
-        close(cl_sock);
-#endif
-        printf("client: closed socket %i\n", cl_sock);
-        fflush(stdout);
-        cl_sock = -1;
-    }
-}
-
-int network_client_join(const char *hostname)
-{
-    struct hostent *hostinfo;
-    union netcmd cmd;
-    int size;
-    
-    hostinfo = gethostbyname(hostname);
-    if (hostinfo == NULL)
-    {
-        network_error = "Unknown host";
+        network_error = strfmt("WSAStartup failed: %i\n", result);
         return 0;
     }
 
-    server_sa.sin_family = AF_INET;
-    server_sa.sin_port = htons(DEFAULT_PORT);
-    server_sa.sin_addr = *(struct in_addr *)hostinfo->h_addr;
-
-    cmd.join.type = NETCMD_JOIN;
-    cmd.join.version = PROTO_VERSION;
-
-    size = sendto(cl_sock, (const char *)&cmd, sizeof(cmd), 0, (struct sockaddr *)&server_sa, 0);
-    if (size != sizeof(cmd))
-    {
-        printf("client: sent %i of %i bytes\n", size, sizeof(cmd));
-        if (size < 0)
-            network_error = strerror(errno);
-        else
-            network_error = "Send error";
-        return 0;
-    }
-
+    ws_initialized = 1;
     return 1;
 }
 
-void network_send_command(union netcmd *cmd)
+static char *get_socket_error(void)
 {
+    int error = WSAGetLastError();
+    static char buffer[MAXSTR];
     
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, error, 0, buffer, sizeof(buffer), NULL);
+    //log_printf("socket error: %s\n", buffer);
+    return buffer;
 }
+#endif
 
-/*---------------------------------------------------------------------------*/
-/* Server */
-
-static int server_sock = -1;
-
-static struct sockaddr_in client_sa;  /* addr of client that sent command */
-
-void network_server_init(void)
+static int init_socket(int port)
 {
+    int sockfd;
     struct sockaddr_in sa = {0};
 
-#ifdef _WIN32
-    init_winsock();
-#endif
-
     /* Create socket */
-    server_sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (server_sock == -1)
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd == -1)
     {
-        puts("server: error creating socket");
-        fflush(stdout);
-        return;
-    }
-    else
-    {
-        printf("server: created socket %i\n", server_sock);
-        fflush(stdout);
+        network_error = strfmt("error creating socket: %s", strerror(errno));
+        return -1;
     }
 
-    /* Bind to port */
+    log_printf("created socket %i\n", sockfd);
+    
+    /* Bind socket to port */
     sa.sin_family = AF_INET;  /* TODO: support IPV6 */
     sa.sin_addr.s_addr = INADDR_ANY;
-    sa.sin_port = htons(DEFAULT_PORT);
-    if (bind(server_sock, (struct sockaddr *)&sa, sizeof(sa)) == -1)
+    sa.sin_port = htons(port);
+    if (bind(sockfd, (struct sockaddr *)&sa, sizeof(sa)) == -1)
     {
-        puts("server: failed to bind to port");
-        fflush(stdout);
-        return;
+        network_error = "failed to bind to port";
+        return -1;
     }
-    else
-    {
-        printf("server: bound to port %i\n", DEFAULT_PORT);
-        fflush(stdout);
-    }
+
+    log_printf("bound to port %i\n", port);
+
+    return sockfd;
 }
 
-void network_server_close(void)
+static void close_socket(int sockfd)
 {
-    if (server_sock > 0)
+    if (sockfd > 0)
     {
 #ifdef _WIN32
-        closesocket(server_sock);
+        closesocket(sockfd);
 #else
-        close(server_sock);
+        close(sockfd);
 #endif
-        printf("server: closed socket %i\n", server_sock);
+        printf("closed socket %i\n", sockfd);
         fflush(stdout);
-        server_sock = -1;
     }
 }
 
+/* Determines if the socket has any data to receive */
 static int socket_ready(int sockfd)
 {
     fd_set read_fd_set = {0};
@@ -189,50 +139,360 @@ static int socket_ready(int sockfd)
     return (select(0, &read_fd_set, NULL, NULL, &timeout) > 0);
 }
 
-int network_recv_command(union netcmd *cmd)
+int network_send_cmd(union netcmd *cmd, uint32_t ip_addr, uint16_t port)
 {
-    if (socket_ready(server_sock))
-    {
-        size_t length;
-        int addr_len;
+    int size;
+    struct sockaddr_in sa = {0};
 
-        length = recvfrom(server_sock, (char *)cmd, sizeof(*cmd), MSG_WAITALL, (struct sockaddr *)&client_sa, &addr_len);
-        /*
-        if (length != -1)
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = ip_addr;
+    sa.sin_port = htons(port);
+
+    assert(net_sock > 0);
+
+    size = sendto(net_sock, (const char *)cmd, sizeof(*cmd), 0, (struct sockaddr *)&sa, sizeof(sa));
+    if (size != sizeof(*cmd))
+    {
+        printf("sent %i of %i bytes\n", size, sizeof(*cmd));
+        if (size < 0)
+            network_error = strerror(errno);
+        else
+            network_error = "Send error";
+        return 0;
+    }
+    return 1;
+}
+
+int network_recv_cmd(union netcmd *cmd, uint32_t *ip_addr, uint16_t *port)
+{
+    assert(net_sock > 0);
+
+    if (socket_ready(net_sock))
+    {
+        int size;
+        struct sockaddr_in sa = {0};
+        int addr_len = sizeof(sa);
+
+        log_printf("receiving...\n");
+        size = recvfrom(net_sock, (char *)cmd, sizeof(*cmd), 0, (struct sockaddr *)&sa, &addr_len);
+        log_printf("done\n");
+        if (size == sizeof(*cmd))
         {
-            puts("got data");
-            getch();
-        }
-        */
-        
-        if (length == sizeof(*cmd))
-        {
-            puts("got cmd");
-            fflush(stdout);
+            *ip_addr = sa.sin_addr.s_addr;
+            *port    = sa.sin_port;
+
             return 1;
         }
-        
-        if (length == -1)
-            ;//printf("server: recv error: %s\n", strerror(errno));
+
+        if (size == -1)
+            printf("recv error: %s\n", get_socket_error());
         else
-            printf("server: invalid length %i, expected %u\n", length, sizeof(*cmd));
+            printf("invalid length %i, expected %u\n", size, sizeof(*cmd));
         fflush(stdout);
     }
 
     return 0;
 }
 
-/* Returns 1 if a player joined or quit */
-int network_listen(void)
+static char *ip_to_str(uint32_t ip_addr)
 {
-    union netcmd cmd;
+    static char buf[16];
     
-    network_recv_command(&cmd);
+    sprintf(buf, "%u.%u.%u.%u", 
+        (ip_addr >> 24) & 0xFF,
+        (ip_addr >> 16) & 0xFF,
+        (ip_addr >>  8) & 0xFF,
+        (ip_addr >>  0) & 0xFF);
+    return buf;
+}
+
+/*---------------------------------------------------------------------------*/
+/* Client */
+
+static uint32_t server_addr;
+static uint16_t server_port;
+
+int network_status = NETWORK_STATUS_IDLE;
+
+int network_client_init(void)
+{
+    network_error = NULL;
+
+#ifdef _WIN32
+    if (!init_winsock())
+        return 0;
+#endif
+
+    if ((net_sock = init_socket(DEFAULT_CLIENT_PORT)) == -1)
+        return 0;
+
+    network_status = NETWORK_STATUS_IDLE;
+    
+    return 1;
+}
+
+void network_client_close(void)
+{
+    close_socket(net_sock);
+}
+
+int network_client_join(const char *hostname)
+{
+    struct hostent *hostinfo;
+    struct sockaddr_in sa;
+    union netcmd cmd;
+    int port = DEFAULT_SERVER_PORT;  /* TODO: allow connecting to other ports */
+
+    network_error = NULL;
+
+    hostinfo = gethostbyname(hostname);
+    if (hostinfo == NULL)
+    {
+        network_error = strfmt("unknown host %s", hostname);
+        return 0;
+    }
+
+    sa.sin_addr = *(struct in_addr *)hostinfo->h_addr;
+
+    server_addr = sa.sin_addr.s_addr;
+    server_port = port;
+
+    cmd.knock.type = NETCMD_KNOCK;
+    cmd.knock.version = PROTO_VERSION;
+    strcpy(cmd.knock.name, "Mr. Client");
+    network_send_cmd(&cmd, server_addr, server_port);
+
+    network_status = NETWORK_STATUS_CONNECTING;
+
+    return 1;
+}
+
+void network_client_process(void)
+{
+    uint32_t ip_addr;
+    uint16_t port;
+    union netcmd incmd = {0};
+    int i;
+
+    while (network_recv_cmd(&incmd, &ip_addr, &port))
+    {
+        union netcmd outcmd = {0};
+
+        /* Only accept commands from server. nobody else. */
+        if (ip_addr != server_addr || port != server_port)
+            continue;
+
+        switch (incmd.base.type)
+        {
+        case NETCMD_PING:
+            outcmd.ack.type = NETCMD_ACK;
+            outcmd.ack.seq_num = incmd.ping.seq_num;
+            network_send_cmd(&outcmd, ip_addr, server_port);
+            break;
+        case NETCMD_WELCOME:
+            log_printf("I joined the game as player %i\n", incmd.welcome.player_num);
+            network_status = NETWORK_STATUS_CONNECTED;
+            break;
+        case NETCMD_PLAYERS:
+            log_printf("List of players:\n");
+            for (i = 0; i < 4; i++)
+            {
+                if (incmd.players.players[i].active)
+                    log_printf("\tplayer %i: '%s'\n", i + 1, incmd.players.players[i].name);
+            }
+            break;
+        case NETCMD_ERROR:
+            log_printf("protocol error %i\n", incmd.error.errcode);
+            break;
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------*/
+/* Server */
+
+struct net_player
+{
+    int active;
+    uint32_t ip_addr;  /* 0 here indicates the server */
+    uint16_t port;
+    uint32_t last_ping;  /* Timestamp of last ping */
+    char name[MAXSTR];
+};
+
+static struct net_player net_players[4];
+
+static int add_net_player(uint32_t ip_addr, uint16_t port, const char *name)
+{
+    int i;
+    struct net_player *p;
+    int index = -1;
+
+    for (i = 0; i < 4; i++)
+    {
+        p = &net_players[i];
+
+        if (p->active && p->ip_addr == ip_addr && p->port == port)
+            return 0;  /* already exists */
+        if (!p->active)
+            index = i;
+    }
+
+    if (index != -1)
+    {
+        p = &net_players[index];
+
+        p->active = 1;
+        p->ip_addr = ip_addr;
+        p->port = port;
+        p->last_ping = 0;  /* TODO: implement ping */
+        strncpy(p->name, name, sizeof(p->name));
+        p->name[sizeof(p->name) - 1] = 0;
+        return 1;
+    }
+
+    return 0;
+}
+
+static int remove_net_player(uint32_t ip_addr, uint16_t port)
+{
+    int i;
+    struct net_player *p;
+
+    for (i = 0; i < 4; i++)
+    {
+        p = &net_players[i];
+        
+        if (p->active && p->ip_addr == ip_addr && p->port == port)
+        {
+            p->active = 0;
+            return 1;
+        }
+    }
     
     return 0;
 }
 
-void network_get_players(void)
+static int is_player_port_addr(uint32_t ip_addr, uint16_t port)
 {
+    int i;
+    struct net_player *p;
     
+    for (i = 0; i < 4; i++)
+    {
+        p = &net_players[i];
+        
+        if (p->active && p->ip_addr == ip_addr && p->port == port)
+            return 1;
+    }
+    return 0;
+}
+
+int network_server_init(void)
+{
+    network_error = NULL;
+
+#ifdef _WIN32
+    if (!init_winsock())
+        return 0;
+#endif
+
+    if ((net_sock = init_socket(DEFAULT_SERVER_PORT)) != -1)
+        return 0;
+
+    add_net_player(0, 0, "Mr. Server");
+
+    return 1;
+}
+
+void network_server_close(void)
+{
+    close_socket(net_sock);
+}
+
+void network_server_process(void)
+{
+    uint32_t ip_addr;
+    uint16_t port;
+    union netcmd incmd = {0};
+
+    while (network_recv_cmd(&incmd, &ip_addr, &port))
+    {
+        union netcmd outcmd = {0};
+
+        /* Only accept commands from players */
+        if (!is_player_port_addr(ip_addr, port) && incmd.base.type != NETCMD_KNOCK)
+            continue;
+
+        switch (incmd.base.type)
+        {
+        case NETCMD_PING:
+            outcmd.ack.type = NETCMD_ACK;
+            outcmd.ack.seq_num = incmd.ping.seq_num;
+            network_send_cmd(&outcmd, ip_addr, port);
+            break;
+        case NETCMD_KNOCK:
+            if (add_net_player(ip_addr, port, incmd.knock.name))
+            {
+                int i;
+                struct net_player *p;
+
+                /* Notify player of successful join */
+                
+                log_printf("player '%s' (%s:%i) has joined\n", incmd.knock.name, ip_to_str(ip_addr), port);
+                
+                for (i = 0; i < 4; i++)
+                {
+                    p = &net_players[i];
+                    
+                    if (p->active && p->ip_addr != 0 && p->ip_addr == ip_addr && p->port == port)
+                    {
+                        outcmd.welcome.type = NETCMD_WELCOME;
+                        outcmd.welcome.player_num = i + 1;
+                        network_send_cmd(&outcmd, ip_addr, port);
+                        break;
+                    }
+                }
+
+                memset(&outcmd, 0, sizeof(outcmd));
+
+                /* Notify all other players of join */
+                
+                outcmd.players.type = NETCMD_PLAYERS;
+                
+                for (i = 0; i < 4; i++)
+                {
+                    p = &net_players[i];
+                    
+                    if (p->active)
+                    {
+                        outcmd.players.players[i].active = 1;
+                        SAFECPY(outcmd.players.players[i].name, p->name);
+                    }
+                }
+                
+                for (i = 0; i < 4; i++)
+                {
+                    p = &net_players[i];
+                    
+                    if (p->active && p->ip_addr != 0)
+                        network_send_cmd(&outcmd, p->ip_addr, DEFAULT_CLIENT_PORT);
+                }
+            }
+            else
+            {
+                log_printf("player '%s' (%s:%i) could not join\n", incmd.knock.name, ip_to_str(ip_addr), port);
+            }
+            break;
+        /*
+        case NETCMD_QUERY:
+            outcmd.
+        */
+        default:  // Unknown command
+            outcmd.error.type = NETCMD_ERROR;
+            outcmd.error.errcode = ERR_INVALID;
+            network_send_cmd(&outcmd, ip_addr, port);
+            break;
+        }
+    }
 }
