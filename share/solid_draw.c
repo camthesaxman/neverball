@@ -897,24 +897,38 @@ void r_apply_mtrl(struct s_rend *rend, int mi)
 
     /* Environment mapping. */
 
-#if !ENABLE_OPENGLES
     if ((mp_flags & M_ENVIRONMENT) ^ (mq_flags & M_ENVIRONMENT))
     {
         if (mp_flags & M_ENVIRONMENT)
         {
+#if ENABLE_OPENGLES
+            /* Zero out the texture matrix so that it displays a solid color */
+            const GLfloat mtx[16] = { 0 };
+
+            glMatrixMode(GL_TEXTURE);
+            glPushMatrix();
+            glLoadMatrixf(mtx);
+            glMatrixMode(GL_MODELVIEW);
+#else
             glEnable(GL_TEXTURE_GEN_S);
             glEnable(GL_TEXTURE_GEN_T);
 
             glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
             glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
+#endif
         }
         else
         {
+#if ENABLE_OPENGLES
+            glMatrixMode(GL_TEXTURE);
+            glPopMatrix();
+            glMatrixMode(GL_MODELVIEW);
+#else
             glDisable(GL_TEXTURE_GEN_S);
             glDisable(GL_TEXTURE_GEN_T);
+#endif
         }
     }
-#endif
 
     /* Additive blending. */
 
