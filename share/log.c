@@ -15,6 +15,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 #include "log.h"
 #include "common.h"
 #include "version.h"
@@ -44,6 +48,9 @@ void log_printf(const char *fmt, ...)
 
         fputs(str, stderr);
         fflush(stderr);
+#ifdef __ANDROID__
+        __android_log_write(ANDROID_LOG_INFO, "Neverball", str);
+#endif
 
         if (log_fp)
         {

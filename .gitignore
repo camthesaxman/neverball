@@ -18,3 +18,10 @@
 /mapc.exe
 /contrib/curve.exe
 /*.dll
+
+# Android build artifacts
+android/.gradle
+android/app/.externalNativeBuild
+android/app/build
+android/app/jni/*
+!android/app/jni/Android.mk

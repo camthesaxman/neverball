@@ -28,6 +28,11 @@
 
 /* Named rendering pass indices. */
 
+#ifdef __ANDROID__
+/* This constant is already defined in Android's limits.h for an unrelated purpose. */
+#undef PASS_MAX
+#endif
+
 enum
 {
     PASS_OPAQUE = 0,

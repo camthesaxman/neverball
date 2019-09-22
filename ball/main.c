@@ -530,6 +530,18 @@ int main(int argc, char *argv[])
 {
     int t1, t0;
 
+#ifdef __ANDROID__
+    char dataPath[MAXSTR];
+
+    /* Adjust Android paths using environment variables */
+    snprintf(dataPath, sizeof(dataPath), "%s/data", SDL_AndroidGetInternalStoragePath());
+    setenv("HOME",           SDL_AndroidGetInternalStoragePath(), 0);
+    setenv("NEVERBALL_DATA", dataPath,                            0);
+
+    /* Don't make the accelerometer show up as a joystick, since it's handled by tilt_android.c */
+    SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
+#endif
+
     if (!fs_init(argc > 0 ? argv[0] : NULL))
     {
         fprintf(stderr, "Failure to initialize virtual file system (%s)\n",
