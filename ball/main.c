@@ -40,6 +40,7 @@
 #include "mtrl.h"
 #include "geom.h"
 #include "joy.h"
+#include "discord.h"
 
 #include "st_conf.h"
 #include "st_title.h"
@@ -605,6 +606,10 @@ int main(int argc, char *argv[])
     log_init("Neverball", "neverball.log");
     make_dirs_and_migrate();
 
+#if ENABLE_DISCORD
+    discord_init("751643912124235867", "neverball_512");
+#endif
+
     /* Initialize SDL. */
 
 #ifdef SDL_HINT_TOUCH_MOUSE_EVENTS
@@ -707,6 +712,10 @@ int main(int argc, char *argv[])
 #endif
 
     config_save();
+
+#if ENABLE_DISCORD
+    discord_quit();
+#endif
 
     mtrl_quit();
 

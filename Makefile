@@ -102,6 +102,10 @@ ifeq ($(ENABLE_HMD),libovr)
 	ALL_CPPFLAGS += -DENABLE_HMD=1
 endif
 
+ifeq ($(ENABLE_DISCORD),1)
+	ALL_CPPFLAGS += -DENABLE_DISCORD=1
+endif
+
 ifeq ($(ENABLE_RADIANT_CONSOLE),1)
 	ALL_CPPFLAGS += -DENABLE_RADIANT_CONSOLE=1
 endif
@@ -205,6 +209,10 @@ ifeq ($(PLATFORM),darwin)
 	                                           /usr/local/lib))
 endif
 
+ifeq ($(ENABLE_DISCORD),1)
+	BASE_LIBS += -ldl
+endif
+
 OGG_LIBS := -lvorbisfile
 TTF_LIBS := -lSDL2_ttf
 
@@ -293,6 +301,7 @@ BALL_OBJS := \
 	share/fs_ov.o       \
 	share/log.o         \
 	share/joy.o         \
+	share/discord.o     \
 	ball/hud.o          \
 	ball/game_common.o  \
 	ball/game_client.o  \
@@ -361,6 +370,7 @@ PUTT_OBJS := \
 	share/array.o       \
 	share/log.o         \
 	share/joy.o         \
+	share/discord.o     \
 	putt/hud.o          \
 	putt/game.o         \
 	putt/hole.o         \

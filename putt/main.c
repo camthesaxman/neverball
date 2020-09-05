@@ -36,6 +36,7 @@
 #include "hmd.h"
 #include "fs.h"
 #include "joy.h"
+#include "discord.h"
 
 #include "st_conf.h"
 #include "st_all.h"
@@ -304,6 +305,10 @@ int main(int argc, char *argv[])
     log_init("Neverputt", "neverputt.log");
     fs_mkdir("Screenshots");
 
+#if ENABLE_DISCORD
+    discord_init("751838931561087057", "neverputt_512");
+#endif
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) == 0)
     {
         joy_init();
@@ -382,6 +387,10 @@ int main(int argc, char *argv[])
 
         config_set_d(CONFIG_CAMERA, camera);
         config_save();
+
+#if ENABLE_DISCORD
+        discord_quit();
+#endif
 
         joy_quit();
 

@@ -24,6 +24,7 @@
 #include "course.h"
 #include "config.h"
 #include "video.h"
+#include "discord.h"
 
 #include "st_all.h"
 #include "st_conf.h"
@@ -714,12 +715,31 @@ static int shared_keybd(int c, int d)
 
 static int num = 0;
 
+#if ENABLE_DISCORD
+char *curr_course_name(void)
+{
+    static char buf[MAXSTR];
+    const char *desc = course_desc(course_curr());
+    int i;
+
+    // Grab the course name by using the first line of the description, since there's really no other way.
+    for (i = 0; i < sizeof(buf) - 1 && desc[i] != '\\' && desc[i] != 0; i++)
+        buf[i] = desc[i];
+    buf[i] = 0;
+    return buf;
+}
+#endif
+
 static int next_enter(struct state *st, struct state *prev)
 {
     int id, jd;
     char str[MAXSTR];
 
     sprintf(str, _("Hole %02d"), curr_hole());
+
+#if ENABLE_DISCORD
+    discord_update_level(curr_course_name(), str);
+#endif
 
     if ((id = gui_vstack(0)))
     {
@@ -1341,6 +1361,9 @@ static int score_buttn(int b, int d)
 
 static int over_enter(struct state *st, struct state *prev)
 {
+#if ENABLE_DISCORD
+    discord_update_level(NULL, NULL);
+#endif
     audio_music_fade_out(2.f);
     return score_card(_("Final Scores"), gui_yel, gui_red);
 }

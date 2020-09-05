@@ -20,6 +20,7 @@
 #include "audio.h"
 #include "config.h"
 #include "demo.h"
+#include "discord.h"
 
 #include "game_server.h"
 #include "game_client.h"
@@ -88,6 +89,10 @@ static int level_gui(void)
 
 static int level_enter(struct state *st, struct state *prev)
 {
+#if ENABLE_DISCORD
+    discord_update_level(set_name(curr_set()), level_name(curr_level()));
+#endif
+
     game_client_fly(1.0f);
 
     if (check_nodemo && !demo_fp)
@@ -230,6 +235,10 @@ int goto_exit(void)
 {
     struct state *curr = curr_state();
     struct state *dst;
+
+#if ENABLE_DISCORD
+    discord_update_level(NULL, NULL);
+#endif
 
     if (progress_done())
         dst = &st_done;
