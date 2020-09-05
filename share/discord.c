@@ -62,7 +62,14 @@ static struct DiscordRichPresence presence = {0};
 static uint64_t ms_since_epoch(void)
 {
 #ifdef _WIN32
-#error implement this
+    FILETIME time = {0};
+    uint64_t result;
+
+    GetSystemTimeAsFileTime(&time);
+    result = ((uint64_t)time.dwHighDateTime << 32) | time.dwLowDateTime;
+    result /= 10000;  // Convert to milliseconds
+    // Windows epoch is Jan 1, 1601, but we need the time since Jan 1, 1970
+    return result - 11644473600000;
 #else
     struct timespec spec;
 
@@ -74,7 +81,22 @@ static uint64_t ms_since_epoch(void)
 static int load_discord_library(void)
 {
 #ifdef _WIN32
-#error implement this
+    lib = LoadLibrary("discord-rpc.dll");
+    if (lib == NULL)
+    {
+        char *msg;
+        DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER
+                    | FORMAT_MESSAGE_FROM_SYSTEM
+                    | FORMAT_MESSAGE_IGNORE_INSERTS;
+        FormatMessageA(flags, NULL, GetLastError(), 0, (char *)&msg, 0, NULL);
+        log_printf("Failed to open Discord library: %s\n", msg);
+        LocalFree(msg);
+        return 0;
+    }
+
+    Discord_Initialize     = GetProcAddress(lib, "Discord_Initialize");
+    Discord_Shutdown       = GetProcAddress(lib, "Discord_Shutdown");
+    Discord_UpdatePresence = GetProcAddress(lib, "Discord_UpdatePresence");
 #else
     lib = dlopen("./libdiscord-rpc.so", RTLD_LAZY);
     if (lib == NULL)
@@ -159,7 +181,7 @@ void discord_quit(void)
     {
         Discord_Shutdown();
 #ifdef _WIN32
-#error implement this
+        FreeLibrary(lib);
 #else
         dlclose(lib);
 #endif

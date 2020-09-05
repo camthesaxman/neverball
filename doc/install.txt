@@ -76,6 +76,11 @@ make ENABLE_RADIANT_CONSOLE=1
 
     SDL2_net          http://www.libsdl.org/projects/SDL_net/
 
+make ENABLE_DISCORD=1
+    Discord Rich Presence support (shows the game and level on Discord).
+
+    discord-rpc       https://discord.com/rich-presence
+
 
 * INSTALLATION
 

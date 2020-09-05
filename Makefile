@@ -210,7 +210,9 @@ ifeq ($(PLATFORM),darwin)
 endif
 
 ifeq ($(ENABLE_DISCORD),1)
-	BASE_LIBS += -ldl
+	ifneq ($(PLATFORM),mingw)
+		BASE_LIBS += -ldl
+	endif
 endif
 
 OGG_LIBS := -lvorbisfile
