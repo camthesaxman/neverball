@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neverball</title>
+  <style>
+    body {
+      /* System fonts. */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      padding: 0;
+      margin: 0;
+    }
+
+    #main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #spinner {
+      padding: 20px 0 0;
+      /* Room for bounce. */
+    }
+
+    #spinner[hidden] {
+      display: none;
+    }
+
+    #spinner img {
+      width: 24px;
+      height: auto;
+      animation-name: bouncing;
+      animation-direction: alternate;
+      animation-duration: 0.27s;
+      animation-iteration-count: infinite;
+      animation-timing-function: cubic-bezier(.25, .46, .45, .94);
+    }
+
+    .toggle input[type="checkbox"] {
+      display: none;
+    }
+
+    .toggle label {
+      position: relative;
+    }
+
+    .toggle label::before {
+      content: '';
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid black;
+      vertical-align: middle;
+      margin-right: 0.4em;
+    }
+
+    .toggle label::after {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 8px;
+      border-bottom: 2px solid black;
+      border-right: 2px solid black;
+      position: absolute;
+      width: 4px;
+      height: 9px;
+      left: 7px;
+      top: 0;
+      transform: rotate(45deg);
+      opacity: 0;
+      transition: 0.1s ease-out all;
+    }
+
+    .toggle input:checked+label::after {
+      opacity: 1;
+      top: 6px;
+    }
+
+    .toggle input:disabled + label::before,
+    .toggle input:disabled + label::after {
+      border-color: rgba(0, 0, 0, 0.4);
+    }
+
+    @keyframes bouncing {
+      100% {
+        transform: translateY(-10px);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="main">
+    <div id="spinner">
+      <img src="neverball-logo.svg" alt="">
+    </div>
+
+    <div id="status">Downloading...</div>
+
+    <div id="progress-wrapper">
+      <progress value="0" max="100" id="progress" hidden=1></progress>
+    </div>
+
+    <div id="canvas-wrapper">
+      <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+    </div>
+
+    <div id="info">
+      <div class="toggle" id="persist-toggle">
+        <p>This will make sure replays and settings are not deleted when browser cache is automatically cleared.</p>
+
+        <input type="checkbox" id="persist-input">
+        <label for="persist-input">Enable persistent storage (clear site data to revoke)</label>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var persistInput = document.getElementById('persist-input');
+
+      if (navigator.storage) {
+
+        if (navigator.storage.persisted) {
+          console.log('Storage persistence can be queried.');
+
+          navigator.storage.persisted().then(function (persistent) {
+            console.log('Storage persistence query: ' + (persistent ? 'persistent' : 'non-persistent'));
+            persistInput.checked = persistent;
+            // We have no way of revoking this, so disable the checkbox.
+            persistInput.disabled = persistent;
+          });
+        }
+
+        if (navigator.storage.persist) {
+          console.log('Storage persistence can be requested.');
+
+          persistInput.addEventListener('change', function (event) {
+            if (this.checked) {
+              // Remove the checkmark, we'll re-add it on actual success.
+              this.checked = false;
+
+              navigator.storage.persist().then(function (persistent) {
+                console.log('Storage persistence request: ' + (persistent ? 'persistent' : 'non-persistent'));
+
+                persistInput.checked = persistent;
+                // We have no way of revoking this, so disable the checkbox.
+                persistInput.disabled = persistent;
+              });
+            }
+          });
+        }
+      } else {
+        persistInput.disabled = true;
+      }
+    })();
+  </script>
+
+  <script type='text/javascript'>
+    var statusElement = document.getElementById('status');
+    var progressElement = document.getElementById('progress');
+    var spinnerElement = document.getElementById('spinner');
+
+    var Module = {
+      preRun: [],
+      postRun: [],
+      print: (function () {
+        var element = document.getElementById('output');
+        if (element) element.value = ''; // clear browser cache
+        return function (text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          // These replacements are necessary if you render to raw HTML
+          //text = text.replace(/&/g, "&amp;");
+          //text = text.replace(/</g, "&lt;");
+          //text = text.replace(/>/g, "&gt;");
+          //text = text.replace('\n', '<br>', 'g');
+          console.log(text);
+          if (element) {
+            element.value += text + "\n";
+            element.scrollTop = element.scrollHeight; // focus on bottom
+          }
+        };
+      })(),
+      printErr: function (text) {
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        console.error(text);
+      },
+      canvas: (function () {
+        var canvas = document.getElementById('canvas');
+
+        // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+        // application robust, you may want to override this behavior before shipping!
+        // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+        canvas.addEventListener("webglcontextlost", function (e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+
+        return canvas;
+      })(),
+      setStatus: function (text) {
+        if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+        if (text === Module.setStatus.last.text) return;
+        var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+        var now = Date.now();
+        if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+        Module.setStatus.last.time = now;
+        Module.setStatus.last.text = text;
+        if (m) {
+          text = m[1];
+          progressElement.value = parseInt(m[2]) * 100;
+          progressElement.max = parseInt(m[4]) * 100;
+          progressElement.hidden = false;
+          spinnerElement.hidden = false;
+        } else {
+          progressElement.value = null;
+          progressElement.max = null;
+          progressElement.hidden = true;
+          if (!text) spinnerElement.hidden = true;
+        }
+        statusElement.innerHTML = text;
+      },
+      totalDependencies: 0,
+      monitorRunDependencies: function (left) {
+        this.totalDependencies = Math.max(this.totalDependencies, left);
+        Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+      }
+    };
+    Module.setStatus('Downloading...');
+    window.onerror = function () {
+      Module.setStatus('Exception thrown, see JavaScript console');
+      spinnerElement.style.display = 'none';
+      Module.setStatus = function (text) {
+        if (text) Module.printErr('[post-exception status] ' + text);
+      };
+    };
+  </script>
+
+  <script>
+    (function () {
+      /**
+       * Set up the user folder with a backing store.
+       *
+       * Adding as run dependency, because this is an async operation.
+       */
+      function initUserFolder() {
+        // Create the user folder and mount IndexedDB on it.
+        FS.mkdir('/neverball');
+        FS.mount(IDBFS, {}, '/neverball');
+
+        // Tell Emscripten to wait for us.
+        Module.addRunDependency('neverball:user-folder');
+
+        console.log('Synchronizing from backing store...');
+
+        FS.syncfs(true, function (err) {
+          if (err)
+            console.error('Failure to synchronize from backing store: ' + err);
+          else
+            console.log('Successfully synced from backing store.');
+
+          // Tell Emscripten to stop waiting.
+          Module.removeRunDependency('neverball:user-folder');
+        });
+      }
+
+      /**
+       * Detect browser back navigation via history states.
+       */
+      function initBackButton() {
+        window.history.replaceState({ initial: true }, null);
+        window.history.pushState({ initial: false }, null);
+
+        window.addEventListener('popstate', function (event) {
+          if (event.state && event.state.initial) {
+            // Notify Neverball via our entry point.
+            Module._push_user_event(-1);
+
+            if (!Module['neverball'].isTitleScreen) {
+              // Re-add sentinel immediately.
+              window.history.pushState({ initial: false }, null);
+            } else {
+              // User probably wants to leave.
+              window.history.back();
+            }
+          }
+        });
+
+        // Also check and re-add sentinel on user action.
+        Module['canvas'].addEventListener('click', function (event) {
+          if (window.history.state && window.history.state.initial) {
+            window.history.pushState({ initial: false }, null);
+          }
+        });
+      }
+
+      Module['neverball'] = {
+        isTitleScreen: false
+      };
+
+      initBackButton();
+
+      if (Module['preRun'] === undefined) {
+        Module['preRun'] = [];
+      }
+      Module['preRun'].push(initUserFolder);
+    })();
+  </script>
+
+  <!--
+    When this file is used as a shell file, this placeholder is replaced with the script tag:
+
+    {{{ SCRIPT }}}
+
+    But instead, we just insert the script tag ourselves.
+  -->
+  <script async src="neverball.js"></script>
+</body>
+
+</html>
