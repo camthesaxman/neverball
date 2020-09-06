@@ -55,6 +55,7 @@ int CONFIG_MOUSE_CAMERA_L;
 int CONFIG_MOUSE_CAMERA_R;
 int CONFIG_NICE;
 int CONFIG_FPS;
+int CONFIG_DISCORD;
 int CONFIG_SOUND_VOLUME;
 int CONFIG_MUSIC_VOLUME;
 int CONFIG_JOYSTICK;
@@ -166,6 +167,7 @@ static struct
 
     { &CONFIG_NICE,         "nice",         0 },
     { &CONFIG_FPS,          "fps",          0 },
+    { &CONFIG_DISCORD,      "discord",      1 },
     { &CONFIG_SOUND_VOLUME, "sound_volume", 10 },
     { &CONFIG_MUSIC_VOLUME, "music_volume", 6 },
 

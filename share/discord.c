@@ -9,9 +9,9 @@
 #include <time.h>
 #endif
 
-#include "base_config.h"
 #include "discord.h"
 #include "log.h"
+#include "config.h"
 
 struct DiscordRichPresence
 {
@@ -112,27 +112,30 @@ static void on_disconnected(int errorCode, const char *message)
     log_printf("on_disconnected: %i, %s\n", errorCode, message);
 }
 
-int discord_init(const char *appid, const char *imagekey)
+void discord_init(const char *appid, const char *imagekey)
 {
-    if (load_discord_library())
+    printf("discord: %i\n", config_get_d(CONFIG_DISCORD));
+
+    if (config_get_d(CONFIG_DISCORD))
     {
-        struct DiscordEventHandlers handlers = {0};
+        if (load_discord_library())
+        {
+            struct DiscordEventHandlers handlers = {0};
 
-        handlers.ready = on_ready;
-        handlers.errored = on_errored;
-        handlers.disconnected = on_disconnected;
-        Discord_Initialize(appid, &handlers, 0, NULL);
+            handlers.ready = on_ready;
+            handlers.errored = on_errored;
+            handlers.disconnected = on_disconnected;
+            Discord_Initialize(appid, &handlers, 0, NULL);
 
-        presence.details = "https://neverball.org";
-        presence.largeImageKey = imagekey;
-        presence.startTimestamp = ms_since_epoch();
-        Discord_UpdatePresence(&presence);
+            presence.details = "https://neverball.org";
+            presence.largeImageKey = imagekey;
+            presence.startTimestamp = ms_since_epoch();
+            Discord_UpdatePresence(&presence);
 
-        log_printf("Discord Rich Presence enabled\n");
-        initialized = 1;
+            log_printf("Discord Rich Presence enabled\n");
+            initialized = 1;
+        }
     }
-
-    return initialized;
 }
 
 void discord_update_level(const char *set, const char *level)

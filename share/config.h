@@ -52,6 +52,7 @@ extern int CONFIG_MOUSE_CAMERA_L;
 extern int CONFIG_MOUSE_CAMERA_R;
 extern int CONFIG_NICE;
 extern int CONFIG_FPS;
+extern int CONFIG_DISCORD;
 extern int CONFIG_SOUND_VOLUME;
 extern int CONFIG_MUSIC_VOLUME;
 extern int CONFIG_JOYSTICK;

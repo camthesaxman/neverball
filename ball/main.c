@@ -606,10 +606,6 @@ int main(int argc, char *argv[])
     log_init("Neverball", "neverball.log");
     make_dirs_and_migrate();
 
-#if ENABLE_DISCORD
-    discord_init("751643912124235867", "neverball_512");
-#endif
-
     /* Initialize SDL. */
 
 #ifdef SDL_HINT_TOUCH_MOUSE_EVENTS
@@ -630,6 +626,10 @@ int main(int argc, char *argv[])
 
     config_init();
     config_load();
+
+#if ENABLE_DISCORD
+    discord_init("751643912124235867", "neverball_512");
+#endif
 
     /* Initialize localization. */
 
