@@ -4,6 +4,7 @@
 *.desktop
 /locale
 /neverball
+/neverball-recorder
 /neverputt
 /mapc
 /contrib/curve
@@ -15,6 +16,7 @@
 *.autosave.map
 
 /neverball.exe
+/neverball-recorder.exe
 /neverputt.exe
 /mapc.exe
 /contrib/curve.exe
@@ -23,3 +25,5 @@
 /js/neverball.data
 /js/neverball.js
 /js/neverball.wasm
+
+*.mp4

@@ -194,7 +194,7 @@ static void voice_free(struct voice *V)
 
 /*---------------------------------------------------------------------------*/
 
-static void audio_step(void *data, Uint8 *stream, int length)
+void audio_step(void *data, unsigned char *stream, int length)
 {
     struct voice *V = voices;
     struct voice *P = NULL;
@@ -271,7 +271,11 @@ void audio_init(void)
         if (SDL_OpenAudio(&spec, NULL) == 0)
         {
             audio_state = 1;
+#if RECORDER_TARGET
+            SDL_PauseAudio(1);
+#else
             SDL_PauseAudio(0);
+#endif
         }
         else log_printf("Failure to open audio device (%s)\n", SDL_GetError());
     }

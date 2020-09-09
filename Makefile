@@ -47,8 +47,8 @@ endif
 # Optional flags (CFLAGS, CPPFLAGS, ...)
 
 ifeq ($(DEBUG),1)
-	CFLAGS   := -g
-	CXXFLAGS := -g
+	CFLAGS   := -g -O0 -fsanitize=address
+	CXXFLAGS := -g -O0 -fsanitize=address
 	CPPFLAGS :=
 else
 	CFLAGS   := -O2
@@ -215,6 +215,8 @@ endif
 ALL_LIBS := $(HMD_LIBS) $(TILT_LIBS) $(INTL_LIBS) $(TTF_LIBS) \
 	$(OGG_LIBS) $(SDL_LIBS) $(OGL_LIBS) $(BASE_LIBS)
 
+AV_LIBS := -lavformat -lavcodec -lavutil
+
 MAPC_LIBS := $(BASE_LIBS)
 
 ifeq ($(ENABLE_RADIANT_CONSOLE),1)
@@ -229,6 +231,7 @@ endif
 
 MAPC_TARG := mapc$(X)
 BALL_TARG := neverball$(X)
+RECORDER_TARG := neverball-recorder$(X)
 PUTT_TARG := neverputt$(X)
 
 ifeq ($(PLATFORM),mingw)
@@ -324,6 +327,77 @@ BALL_OBJS := \
 	ball/st_pause.o     \
 	ball/st_ball.o      \
 	ball/main.o
+RECORDER_OBJS := \
+	share/lang.o        \
+	share/st_common.o   \
+	share/vec3.o        \
+	share/base_image.o  \
+	share/image.o       \
+	share/solid_base.o  \
+	share/solid_vary.o  \
+	share/solid_draw.o  \
+	share/solid_all.o   \
+	share/mtrl.o        \
+	share/part.o        \
+	share/geom.o        \
+	share/ball.o        \
+	share/gui.o         \
+	share/font.o        \
+	share/theme.o       \
+	share/base_config.o \
+	share/config.o      \
+	share/video.o       \
+	share/glext.o       \
+	share/binary.o      \
+	share/state.o       \
+	share/audio.o       \
+	share/text.o        \
+	share/common.o      \
+	share/list.o        \
+	share/queue.o       \
+	share/cmd.o         \
+	share/array.o       \
+	share/dir.o         \
+	share/fbo.o         \
+	share/glsl.o        \
+	share/fs_common.o   \
+	share/fs_png.o      \
+	share/fs_jpg.o      \
+	share/fs_ov.o       \
+	share/log.o         \
+	share/joy.o         \
+	ball/hud.o          \
+	ball/game_common.o  \
+	ball/game_client.o  \
+	ball/game_server.o  \
+	ball/game_proxy.o   \
+	ball/game_draw.o    \
+	ball/score.o        \
+	ball/level.o        \
+	ball/progress.o     \
+	ball/set.o          \
+	ball/demo.o         \
+	ball/demo_dir.o     \
+	ball/util.o         \
+	ball/st_conf.o      \
+	ball/st_demo.o      \
+	ball/st_save.o      \
+	ball/st_goal.o      \
+	ball/st_fail.o      \
+	ball/st_done.o      \
+	ball/st_level.o     \
+	ball/st_over.o      \
+	ball/st_play.o      \
+	ball/st_set.o       \
+	ball/st_start.o     \
+	ball/st_title.o     \
+	ball/st_help.o      \
+	ball/st_name.o      \
+	ball/st_shared.o    \
+	ball/st_pause.o     \
+	ball/st_ball.o      \
+	recorder/main.o     \
+    recorder/capture.o
 PUTT_OBJS := \
 	share/lang.o        \
 	share/st_common.o   \
@@ -370,10 +444,12 @@ PUTT_OBJS := \
 	putt/main.o
 
 BALL_OBJS += share/solid_sim_sol.o
+RECORDER_OBJS += share/solid_sim_sol.o
 PUTT_OBJS += share/solid_sim_sol.o
 
 ifeq ($(ENABLE_FS),stdio)
 BALL_OBJS += share/fs_stdio.o share/miniz.o
+RECORDER_OBJS += share/fs_stdio.o share/miniz.o
 PUTT_OBJS += share/fs_stdio.o share/miniz.o
 MAPC_OBJS += share/fs_stdio.o share/miniz.o
 endif
@@ -405,16 +481,19 @@ BALL_OBJS += share/hmd_libovr.o share/hmd_common.o
 PUTT_OBJS += share/hmd_libovr.o share/hmd_common.o
 else
 BALL_OBJS += share/hmd_null.o
+RECORDER_OBJS += share/hmd_null.o
 PUTT_OBJS += share/hmd_null.o
 endif
 endif
 
 ifeq ($(PLATFORM),mingw)
 BALL_OBJS += neverball.ico.o
+RECORDER_OBJS += neverball.ico.o
 PUTT_OBJS += neverputt.ico.o
 endif
 
 BALL_DEPS := $(BALL_OBJS:.o=.d)
+RECORDER_DEPS := $(BALL_OBJS:.o=.d)
 PUTT_DEPS := $(PUTT_OBJS:.o=.d)
 MAPC_DEPS := $(MAPC_OBJS:.o=.d)
 
@@ -448,7 +527,7 @@ WINDRES ?= windres
 
 #------------------------------------------------------------------------------
 
-all : $(BALL_TARG) $(PUTT_TARG) $(MAPC_TARG) sols locales desktops
+all : $(BALL_TARG) $(RECORDER_TARG) $(PUTT_TARG) $(MAPC_TARG) sols locales desktops
 
 ifeq ($(ENABLE_HMD),libovr)
 LINK := $(CXX) $(ALL_CXXFLAGS)
@@ -462,6 +541,11 @@ endif
 
 $(BALL_TARG) : $(BALL_OBJS)
 	$(LINK) -o $(BALL_TARG) $(BALL_OBJS) $(LDFLAGS) $(ALL_LIBS)
+
+$(RECORDER_TARG) : $(RECORDER_OBJS)
+	$(LINK) -o $(RECORDER_TARG) $(RECORDER_OBJS) $(LDFLAGS) $(ALL_LIBS) $(AV_LIBS)
+
+$(RECORDER_TARG) : ALL_CPPFLAGS += -Iball -DRECORDER_TARGET=1
 
 $(PUTT_TARG) : $(PUTT_OBJS)
 	$(LINK) -o $(PUTT_TARG) $(PUTT_OBJS) $(LDFLAGS) $(ALL_LIBS)
@@ -485,7 +569,7 @@ endif
 desktops : $(DESKTOPS)
 
 clean-src :
-	$(RM) $(BALL_TARG) $(PUTT_TARG) $(MAPC_TARG)
+	$(RM) $(BALL_TARG) $(RECORDER_TARG) $(PUTT_TARG) $(MAPC_TARG)
 	find . \( -name '*.o' -o -name '*.d' \) -delete
 
 clean : clean-src
@@ -497,6 +581,6 @@ clean : clean-src
 
 .PHONY : all sols locales desktops clean-src clean
 
--include $(BALL_DEPS) $(PUTT_DEPS) $(MAPC_DEPS)
+-include $(BALL_DEPS) $(RECORDER_DEPS) $(PUTT_DEPS) $(MAPC_DEPS)
 
 #------------------------------------------------------------------------------

@@ -501,8 +501,16 @@ static void demo_play_timer(int id, float dt)
 
     if (!demo_replay_step(dt))
     {
+#if RECORDER_TARGET
+        // Since the recorder is not interactive, simply exit the program.
+        SDL_Event ev = {0};
+        ev.type = SDL_QUIT;
+        SDL_PushEvent(&ev);
+        demo_replay_stop(0);
+#else
         demo_paused = 0;
         goto_state(&st_demo_end);
+#endif
     }
     else
     {
